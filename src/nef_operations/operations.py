@@ -234,7 +234,7 @@ def subscribe_qos_event (ip, port, callback_url, token, monitoring_payload):
 
     url = f"http://{ip}:{port}/nef/api/v1/3gpp-as-session-with-qos/" \
         "v1/netapp/subscriptions"
-        
+    
     headers = {}
     headers["accept"] = "application/json"
     headers["Authorization"] = "Bearer " + token
