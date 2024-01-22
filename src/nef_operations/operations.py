@@ -2,7 +2,7 @@
 # @Author: Rafael Direito
 # @Date:   2023-05-22 11:40:10
 # @Last Modified by:   Eduardo Santos
-# @Last Modified time: 2023-12-31 18:42:56
+# @Last Modified time: 2024-01-05 19:32:09
 import requests
 import json 
 
@@ -239,7 +239,7 @@ def subscribe_qos_event (ip, port, callback_url, token, monitoring_payload):
     headers["accept"] = "application/json"
     headers["Authorization"] = "Bearer " + token
     headers["Content-Type"] = "application/json"
-    
+
     response = requests.post(
         url=url,
         headers=headers, 
