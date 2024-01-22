@@ -142,14 +142,24 @@ async def start_test(
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Got UE Path Loss Information", status_code=200)
-        if operation_id == OPERATION.SERVING_CELL_INFO.value:
-            nef_operations.get_serving_cell_info(
+        
+        if operation_id == OPERATION.ACQUISITION_OF_RSRP.value:
+            nef_operations.get_ue_path_loss(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
                 ue_supi=variables.VARIABLES["UE1_SUPI"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
-            return JSONResponse(content="Got UE Serving Cell Information", status_code=200)
+            return JSONResponse(content="Got UE Path Loss Information", status_code=200)
+            
+        if operation_id == OPERATION.SERVING_CELL_INFO.value:
+            nef_operations.get_rsrp_info(
+                ip=variables.VARIABLES["NEF_IP"],
+                port=variables.VARIABLES["NEF_PORT"],
+                ue_supi=variables.VARIABLES["UE1_SUPI"],
+                token = variables.VARIABLES["AUTH_TOKEN"]
+            )
+            return JSONResponse(content="Got UE RSRP Information", status_code=200)
         
         if operation_id == OPERATION.HANDOVER.value:
             nef_operations.get_ue_handover_event(
