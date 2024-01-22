@@ -104,7 +104,7 @@ def get_ues(ip, port, token):
 
 
 def subscribe_event (ip, port, callback_url, monitoring_type,
-                     monitoring_expire_time, token):
+                     monitoring_expire_time, external_id, token):
 
     url = f"http://{ip}:{port}/nef/api/v1/3gpp-monitoring-event/" \
         "v1/netapp/subscriptions"
@@ -115,7 +115,7 @@ def subscribe_event (ip, port, callback_url, monitoring_type,
     headers["Content-Type"] = "application/json"
     
     monitoring_payload = {
-        "externalId": "123456789@domain.com",
+        "externalId": external_id,
         "notificationDestination": callback_url,
         "monitoringType": monitoring_type,
         "maximumNumberOfReports": 1,
@@ -170,7 +170,7 @@ def create_ue(ip, port, ue_name, ue_description,
 
 def get_ue_path_loss(ip, port, ue_supi, token):
     print("starting....")
-    url = f"http://{ip}:{port}/api/v1/UEs/{ue_supi}/path_losses"
+    url = f"http://{ip}:{port}/test/api/v1/UEs/{ue_supi}/path_losses"
         
     headers = {}
     headers["accept"] = "application/json"
@@ -192,7 +192,7 @@ def get_serving_cell_info(ip, port, ue_supi, token):
         ip, port, ue_supi, token
     )
 
-    url = f"http://{ip}:{port}/api/v1/UEs/{ue_supi}/serving_cell"
+    url = f"http://{ip}:{port}/test/api/v1/UEs/{ue_supi}/serving_cell"
         
     headers = {}
     headers["accept"] = "application/json"
@@ -241,9 +241,7 @@ def subscribe_qos_event (ip, port, callback_url, token):
     headers["Content-Type"] = "application/json"
     
     monitoring_payload = {
-        "ipv4Addr": "10.0.0.0",
-        "ipv6Addr": "0:0:0:0:0:0:0:0",
-        "macAddr": "22-00-00-00-00-00",
+        "ipv4Addr": "10.0.0.1",
         "notificationDestination": callback_url,
         "snssai": {
             "sst": 1,
