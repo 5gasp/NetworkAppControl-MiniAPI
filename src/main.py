@@ -88,7 +88,8 @@ async def start_test(
     ue_count: int = None,
     target: str = None):
     try:
-        if operation_id == OPERATION.LOGIN.value:
+        if operation_id == OPERATION.NEF_AUTHENTICATION.value or\
+            operation_id == OPERATION.AUTHENTICATION_WITH_5GS:
             token = nef_operations.login(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
@@ -120,13 +121,16 @@ async def start_test(
             )
             return JSONResponse(content="Got UEs", status_code=200)
         
-        if operation_id == OPERATION.SUBSCRIPTION.value:
+        if operation_id == OPERATION.NEF_LOCATION_SUBSCRIPTION.value:
             nef_operations.subscribe_event(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
-                callback_url=variables.VARIABLES["SUBS1_CALLBACK_URL"],
-                monitoring_type=variables.VARIABLES["SUBS1_MONITORING_TYPE"],
-                monitoring_expire_time=variables.VARIABLES["SUBS1_MONITORING_EXPIRE_TIME"],
+                callback_url=variables.VARIABLES["SUBS_CALLBACK_URL"],
+                monitoring_type=variables.VARIABLES["SUBS_MONITORING_TYPE"],
+                monitoring_expire_time=variables.VARIABLES[
+                    "SUBS_MONITORING_EXPIRE_TIME"
+                ],
+                external_id=variables.VARIABLES["SUBS_EXTERNAL_ID"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Subscription Done", status_code=200)
@@ -134,7 +138,7 @@ async def start_test(
             nef_operations.get_ue_path_loss(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
-                  ue_supi=variables.VARIABLES["UE1_SUPI"],
+                ue_supi=variables.VARIABLES["UE1_SUPI"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Got UE Path Loss Information", status_code=200)
@@ -311,7 +315,7 @@ async def start_test(
             nef_operations.subscribe_qos_event(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
-                callback_url=variables.VARIABLES["SUBS1_CALLBACK_URL"],
+                callback_url=variables.VARIABLES["SUBS_CALLBACK_URL"],
                 token = variables.VARIABLES["AUTH_TOKEN"],
                 monitoring_payload = monitoring_payload
             )
