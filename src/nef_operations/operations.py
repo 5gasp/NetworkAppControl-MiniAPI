@@ -212,6 +212,32 @@ def get_serving_cell_info(ip, port, ue_supi, token):
         ip, port, ue_supi, token
     )
 
+def get_rsrp_info(ip, port, ue_supi, token):
+    # To get the Serving Cell Info, we required to start a new UE Movement Loop
+    create_ue_movement_loop(
+        ip, port, ue_supi, token
+    )
+
+    url = f"http://{ip}:{port}/test/api/v1/UEs/{ue_supi}/rsrps"
+        
+    headers = {}
+    headers["accept"] = "application/json"
+    headers["Authorization"] = "Bearer " + token
+    headers["Content-Type"] = "application/json"
+
+    response = requests.get(
+        url=url,
+        headers=headers, 
+    )
+    
+    print("Get UE Serving Cell Information", response.text)
+    if response.status_code not in [200, 201, 409]:
+        response.raise_for_status()
+    
+    stop_ue_movement_loop(
+        ip, port, ue_supi, token
+    )
+
 def get_ue_handover_event(ip, port, ue_supi, token):
     print("starting....")
     url = f"http://{ip}:{port}/test/api/v1/UEs/{ue_supi}/handovers"
