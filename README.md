@@ -19,7 +19,8 @@ git clone https://github.com/5gasp/NetworkAppControl-MiniAPI.git
 cd ~/NetworkAppControl-MiniAPI/
 ```
 
-3. Now, we need to install the miniAPI requirements. This can be done on the host or using a virtual environment.
+3. Now, you need to install the miniAPI requirements. This can be done on the host or using a virtual environment.
+The following commands may be used to install the miniAPI requirements in an Ubuntu 22.04. If you use a different OS, you may need to follow an alternative approach. 
 
 * On host:
 ```bash
@@ -31,7 +32,7 @@ pip3 install -r requirements.txt
 * Using venv:
 
 ```bash
-sudo apt install python3.10-venv -y
+sudo apt install python3.10-venv -y # Depending on your Ubuntu version, you may have to update this command
 cd ~/NetworkAppControl-MiniAPI/
 python3 -m venv venv
 source venv/bin/activate
