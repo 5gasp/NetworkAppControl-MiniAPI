@@ -21,7 +21,7 @@ class PingWrapperThread(Thread):
         self.transmitter.count = PING_TIMEOUT
         res = self.transmitter.ping()
         res = self.parser.parse(res).as_dict()
-        with open(f'./static/{variables.E2E_RTT_RESULTS}', 'w') as json_file:
+        with open(f'/tmp/{variables.E2E_RTT_RESULTS}', 'w') as json_file:
             json.dump(res, json_file)
         
 
@@ -39,7 +39,7 @@ def run_hping(self):
 
         # Parse the output
         parsed_output = parse_hping_output(output)
-        with open(f'./static/{variables.E2E_RTT_RESULTS}', 'w') as json_file:
+        with open(f'/tmp/{variables.E2E_RTT_RESULTS}', 'w') as json_file:
             json.dump(parsed_output, json_file)
     except subprocess.CalledProcessError as e:
         print(f"Error running hping3: {e}")
