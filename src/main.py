@@ -19,12 +19,10 @@ from aux import variables
 from aux.operations_ids import OPERATION
 from nef_operations import operations as nef_operations
 from performance_operations import operations as perf_operations
-from fastapi.staticfiles import StaticFiles
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 RUNNING_PROCESSES = {
     OPERATION.MAX_CONNECTIONS.value: [],
@@ -173,10 +171,10 @@ async def start_test(
         if operation_id == OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value:
             # Delete old results file
             if os.path.exists(
-                f'./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
             ):
                 os.remove(
-                    f'./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                    f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
                 )
             
             error_message = None
@@ -221,10 +219,10 @@ async def start_test(
         if operation_id == OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value:
             # Delete old results file
             if os.path.exists(
-                f'./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
             ):
                 os.remove(
-                    f'./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                    f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
                 )
             
             error_message = None
@@ -275,8 +273,8 @@ async def start_test(
         
         if operation_id == OPERATION.MAX_HOPS.value:
             # Delete old results file
-            if os.path.exists(f'./static/{variables.MAX_HOPS_RESULTS}'):
-                os.remove(f'./static/{variables.MAX_HOPS_RESULTS}')
+            if os.path.exists(f'/tmp/{variables.MAX_HOPS_RESULTS}'):
+                os.remove(f'/tmp/{variables.MAX_HOPS_RESULTS}')
                 
             # Start the number of hops until target process
             max_hops_process = perf_operations.start_max_hops_computing(
@@ -294,11 +292,11 @@ async def start_test(
 
         if operation_id == OPERATION.MAX_CONNECTIONS.value:
             # Delete old results file
-            if os.path.exists(f'./static/{variables.MAX_CONNECTIONS_RESULTS}'):
-                os.remove(f'./static/{variables.MAX_CONNECTIONS_RESULTS}')
+            if os.path.exists(f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'):
+                os.remove(f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}')
             # Start the netstat loop
             netstat_process = perf_operations.start_netstat_command(
-                output_file=f'./static/{variables.MAX_CONNECTIONS_RESULTS}'
+                output_file=f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'
             )
             
             # If we can start a monitoring process everything is ok
@@ -335,15 +333,15 @@ async def start_test(
         if operation_id == OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value:
             # Delete old results file
             if os.path.exists(
-                f'./static/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+                f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
             ):
                 os.remove(
-                    f'./static/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+                    f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
                 )
             
             # Start the netstat loop
             netstat_process = perf_operations.start_netstat_command(
-                output_file=f'./static/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+                output_file=f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
             )
             
             # If we can start a monitoring process everything is ok
@@ -385,12 +383,12 @@ async def get_report(operation_id: str):
     
     if operation_id == OPERATION.MAX_CONNECTIONS.value:
         return FileResponse(
-            path=f'./static/{variables.MAX_CONNECTIONS_RESULTS}'
+            path=f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'
         )
     
     if operation_id == OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value:
         return FileResponse(
-            path=f'./static/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+            path=f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
         )    
 
     if operation_id in [
@@ -400,7 +398,7 @@ async def get_report(operation_id: str):
         # The test may still be running when the user requests its results
         try:
             with open(
-                f'./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}',
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}',
                 "r"
             ) as file:
                 data = json.load(file)
@@ -425,13 +423,13 @@ async def get_report(operation_id: str):
     
     if operation_id == OPERATION.MAX_HOPS.value:
         # The test may still be running when the user requests its results
-        if not os.path.exists(f'./static/{variables.MAX_HOPS_RESULTS}'):
+        if not os.path.exists(f'/tmp/{variables.MAX_HOPS_RESULTS}'):
             return JSONResponse(
                 content=f"The Max Hops Performance Test is not finished yet!",
                 status_code=404
             )
         
-        with open(f'./static/{variables.MAX_HOPS_RESULTS}', "r") as file:
+        with open(f'/tmp/{variables.MAX_HOPS_RESULTS}', "r") as file:
             data = json.load(file)
             return JSONResponse(
                 content=data,
