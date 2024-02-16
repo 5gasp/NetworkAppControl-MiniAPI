@@ -14,7 +14,7 @@ def create_process_group():
 def start_iperf_client(target_ip, number_of_streams):
     
     command = f"iperf3 -t 5 -c {target_ip} -P {number_of_streams} -J > "\
-    f"./static/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}"
+    f"/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}"
 
     # Run the command as a background process
     process = subprocess.Popen(
@@ -64,7 +64,7 @@ def start_ping(target_ip, runs):
     for run in range(runs):
         command = f"ping -c 5 {target_ip} | grep time= | "\
             "awk '{print $7}' | cut -d'=' -f2 > "\
-            f"./static/{variables.E2E_SINGLE_UE_LATENCY_BASE_NAME}_{i}.json"
+            f"/tmp/{variables.E2E_SINGLE_UE_LATENCY_BASE_NAME}_{i}.json"
         
         # Run the command as a background process
         process = subprocess.Popen(
@@ -84,7 +84,7 @@ def compute_max_hops(target):
         if response == 0:
             print(f"Reached {target} with {ttl} hops!")
             with open(
-                f'./static/{variables.MAX_HOPS_RESULTS}',
+                f'/tmp/{variables.MAX_HOPS_RESULTS}',
                 'w'
             ) as json_file:
                 json.dump(
@@ -103,7 +103,7 @@ def compute_max_hops(target):
     
     # Finally, create an output file for the unsuccessful test cases
     with open(
-        f'./static/{variables.MAX_HOPS_RESULTS}',
+        f'/tmp/{variables.MAX_HOPS_RESULTS}',
         'w'
     ) as json_file:
         json.dump(

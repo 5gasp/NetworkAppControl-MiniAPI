@@ -10,3 +10,4 @@ services:
           dockerfile: Dockerfile.api
         ports:
             - "3001:3001"
+            - "5201:5201"

@@ -1,3 +1,16 @@
+miniapi (0.0.4) unstable; urgency=low
+
+  * Integration of upstream version ff41b2e (Thu Feb 15 16:40:27 2024)
+
+ -- Christophe COUTURIER <couturier.christophe@gmail.com>  Thu, 15 Feb 2024 20:54:00 +0100
+ 
+miniapi (0.0.3) unstable; urgency=low
+
+  * Integration of upstream version 7465ff7 (Mon Feb 5 09:00:04 2024)
+  * Added dependencies: iperf3, iproute2, iputils-ping, net-tools, nmap 
+
+ -- Christophe COUTURIER <couturier.christophe@gmail.com>  Wed, 14 Feb 2024 14:58:09 +0100
+
 miniapi (0.0.2) unstable; urgency=low
 
   * Integration of upstream version c775644 (Sat Jan 6 12:05:14 2024)
