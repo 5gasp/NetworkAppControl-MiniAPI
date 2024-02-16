@@ -8,6 +8,6 @@ Standards-Version: 3.9.5
 Package: miniapi
 Architecture: any
 Pre-Depends: dpkg (>= 1.16.1), python3-minimal, ${misc:Pre-Depends}
-Depends: ${python3:Depends}, ${misc:Depends}, python3-pip
+Depends: ${python3:Depends}, ${misc:Depends}, python3-pip, iperf3, iproute2, iputils-ping, net-tools, nmap 
 Description: API to trigger the NEF tests of the 5GASP Project
  API to trigger the NEF tests of the 5GASP Project
