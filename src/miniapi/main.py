@@ -136,6 +136,7 @@ async def start_test(
             nef_operations.get_ue_path_loss(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
+
                 ue_supi=variables.VARIABLES["UE1_SUPI"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
@@ -158,6 +159,7 @@ async def start_test(
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Got UE RSRP Information", status_code=200)
+
         
         if operation_id == OPERATION.HANDOVER.value:
             nef_operations.get_ue_handover_event(
