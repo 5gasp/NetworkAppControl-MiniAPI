@@ -6,6 +6,7 @@ spec:
   containers:
   - name: mini-api
     image: harbor.patras5g.eu/5gasp/mini-api-server
+    tag: latest
     command:
     - "/bin/sh"
     -  "-c"
