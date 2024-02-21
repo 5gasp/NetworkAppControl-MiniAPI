@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Rafael Direito
 # @Date:   2023-05-22 10:53:45
-# @Last Modified by:   Rafael Direito
-# @Last Modified time: 2023-05-22 13:16:45
+# @Last Modified by:   Eduardo Santos
+# @Last Modified time: 2024-01-05 19:31:32
 from fastapi import FastAPI, Path, Response, status, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
@@ -14,17 +14,23 @@ from requests.structures import CaseInsensitiveDict
 import requests
 import json
 import os
+import signal
 from aux import variables
 from aux.operations_ids import OPERATION
 from nef_operations import operations as nef_operations
 from performance_operations import operations as perf_operations
-from fastapi.staticfiles import StaticFiles
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
+RUNNING_PROCESSES = {
+    OPERATION.MAX_CONNECTIONS.value: [],
+    OPERATION.MAX_HOPS.value: [],
+    OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value: [],
+    OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value: [],
+    OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value: [],
+}
 
 # Dependency
 def get_db():
@@ -72,10 +78,16 @@ async def configure(payload: schemas.Configuration):
 
 @app.post("/start/{operation_id}")
 async def start_test(
-    operation_id: int, is_server: bool = False, server_ip: str | None = None ):
+    operation_id: str,
+    monitoring_payload: dict = None,
+    is_server: bool = False,
+    target_ip: str = None,
+    target_port: int = None,
+    ue_count: int = None,
+    target: str = None):
     try:
-        print("...")
-        if operation_id == OPERATION.LOGIN.value:
+        if operation_id == OPERATION.NEF_AUTHENTICATION.value or\
+            operation_id == OPERATION.AUTHENTICATION_WITH_5GS:
             token = nef_operations.login(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
@@ -107,13 +119,16 @@ async def start_test(
             )
             return JSONResponse(content="Got UEs", status_code=200)
         
-        if operation_id == OPERATION.SUBSCRIPTION.value:
+        if operation_id == OPERATION.NEF_LOCATION_SUBSCRIPTION.value:
             nef_operations.subscribe_event(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
-                callback_url=variables.VARIABLES["SUBS1_CALLBACK_URL"],
-                monitoring_type=variables.VARIABLES["SUBS1_MONITORING_TYPE"],
-                monitoring_expire_time=variables.VARIABLES["SUBS1_MONITORING_EXPIRE_TIME"],
+                callback_url=variables.VARIABLES["SUBS_CALLBACK_URL"],
+                monitoring_type=variables.VARIABLES["SUBS_MONITORING_TYPE"],
+                monitoring_expire_time=variables.VARIABLES[
+                    "SUBS_MONITORING_EXPIRE_TIME"
+                ],
+                external_id=variables.VARIABLES["SUBS_EXTERNAL_ID"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Subscription Done", status_code=200)
@@ -121,29 +136,235 @@ async def start_test(
             nef_operations.get_ue_path_loss(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
-                  ue_supi=variables.VARIABLES["UE1_SUPI"],
+                ue_supi=variables.VARIABLES["UE1_SUPI"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
             return JSONResponse(content="Got UE Path Loss Information", status_code=200)
-        if operation_id == OPERATION.SERVING_CELL_INFO.value:
-            nef_operations.get_serving_cell_info(
+        
+        if operation_id == OPERATION.ACQUISITION_OF_RSRP.value:
+            nef_operations.get_ue_path_loss(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
                 ue_supi=variables.VARIABLES["UE1_SUPI"],
                 token = variables.VARIABLES["AUTH_TOKEN"]
             )
-            return JSONResponse(content="Got UE Serving Cell Information", status_code=200)
-
-        if operation_id == OPERATION.E2E_UE_PERFORMANCE.value:
-            perf_operations.run_iperf_test(is_server, server_ip)
-            _type = "Server" if is_server else "Client"
-            return JSONResponse(content=f"Started E2E UE Performance Test, as  {_type} Side", status_code=200)
+            return JSONResponse(content="Got UE Path Loss Information", status_code=200)
+            
+        if operation_id == OPERATION.SERVING_CELL_INFO.value:
+            nef_operations.get_rsrp_info(
+                ip=variables.VARIABLES["NEF_IP"],
+                port=variables.VARIABLES["NEF_PORT"],
+                ue_supi=variables.VARIABLES["UE1_SUPI"],
+                token = variables.VARIABLES["AUTH_TOKEN"]
+            )
+            return JSONResponse(content="Got UE RSRP Information", status_code=200)
         
-        if operation_id == OPERATION.E2E_UE_RTT_PERFORMANCE.value:
-            perf_operations.start_ping(server_ip)
-            return JSONResponse(content=f"Started E2E UE RTT Performance Test", status_code=200)
+        if operation_id == OPERATION.HANDOVER.value:
+            nef_operations.get_ue_handover_event(
+                ip=variables.VARIABLES["NEF_IP"],
+                port=variables.VARIABLES["NEF_PORT"],
+                ue_supi=variables.VARIABLES["UE1_SUPI"],
+                token = variables.VARIABLES["AUTH_TOKEN"]
+            )
+            return JSONResponse(content="Subscription Done", status_code=200)
+
+        if operation_id == OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value:
+            # Delete old results file
+            if os.path.exists(
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+            ):
+                os.remove(
+                    f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                )
+            
+            error_message = None
+            # If the current MiniAPI is a client
+            if not is_server:
+                # Now, we can run iperf3 in a indpendent process
+                iperf_server_process = perf_operations.start_iperf_client(
+                    target_ip=target_ip,
+                    number_of_streams=1
+                )
+                
+                if not iperf_server_process:
+                    error_message = "Couldn't start Iperf3 Client. Thus, the"\
+                    "E2E Single UE Throughput and Latency Test could not be "\
+                    "started!"
+            else:
+                iperf_server_process = perf_operations.start_iperf_server()
+                
+                if not iperf_server_process:
+                    error_message = "Couldn't start Iperf3 Server. Thus, the"\
+                    "E2E Single UE Throughput and Latency Test could not be "\
+                    "started!" 
+                else:
+                    # Save to process to kill it later, when /stop is invoked
+                    RUNNING_PROCESSES[
+                        OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value
+                    ].append(iperf_server_process)
+            
+            if error_message:
+                return JSONResponse(
+                    content=error_message,
+                    status_code=400
+            )
+                
+            return JSONResponse(
+                content=f"Started E2E Single UE Throughput and Latency "
+                "Performance Test.",
+                status_code=200
+            )
+            
+            
+        if operation_id == OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value:
+            # Delete old results file
+            if os.path.exists(
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+            ):
+                os.remove(
+                    f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}'
+                )
+            
+            error_message = None
+                            
+            # If the current MiniAPI is a client
+            if not is_server:
+                if not ue_count:
+                    error_message="You must indicate the number of UEs "\
+                        "(?ue_count=x). Since you did not, the E2E Mutiple UE"\
+                        "Throughput and Latency Test could not be started!"
+
+                else:
+                    # Now, we can run iperf3 in a indpendent process
+                    iperf_server_process = perf_operations.start_iperf_client(
+                        target_ip=target_ip,
+                        number_of_streams=ue_count
+                    )
+                    
+                    if not iperf_server_process:
+                        error_message = "Couldn't start Iperf3 Client. Thus, "\
+                        "the E2E Multiple UE Throughput and Latency Test "\
+                        "could not be started!"
+            else:
+                iperf_server_process = perf_operations.start_iperf_server()
+                
+                if not iperf_server_process:
+                    error_message = "Couldn't start Iperf3 Server. Thus, the"\
+                    "E2E Mutiple UE Throughput and Latency Test could not "\
+                    "be started!" 
+                else:
+                    # Save to process to kill it later, when /stop is invoked
+                    RUNNING_PROCESSES[
+                        OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value
+                    ].append(iperf_server_process)
+            
+            if error_message:
+                return JSONResponse(
+                    content=error_message,
+                    status_code=400
+            )
+                
+            return JSONResponse(
+                content=f"Started E2E Multiple UE Throughput and Latency "
+                "Performance Test",
+                status_code=200
+            )
+        
+        
+        if operation_id == OPERATION.MAX_HOPS.value:
+            # Delete old results file
+            if os.path.exists(f'/tmp/{variables.MAX_HOPS_RESULTS}'):
+                os.remove(f'/tmp/{variables.MAX_HOPS_RESULTS}')
+                
+            # Start the number of hops until target process
+            max_hops_process = perf_operations.start_max_hops_computing(
+                target
+            )
+            # Save to process to kill it later, when /stop is invoked
+            RUNNING_PROCESSES[OPERATION.MAX_HOPS.value].append(
+                max_hops_process
+            )
+            
+            return JSONResponse(
+                content=f"Started Max Hops Performance Test",
+                status_code=200
+            )
+
+        if operation_id == OPERATION.MAX_CONNECTIONS.value:
+            # Delete old results file
+            if os.path.exists(f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'):
+                os.remove(f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}')
+            # Start the netstat loop
+            netstat_process = perf_operations.start_netstat_command(
+                output_file=f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'
+            )
+            
+            # If we can start a monitoring process everything is ok
+            if netstat_process:
+                # Save to process to kill it later, when /stop is invoked
+                RUNNING_PROCESSES[OPERATION.MAX_CONNECTIONS.value].append(
+                    netstat_process
+                )
+                print("Connections monitoring process was started...")
+                return JSONResponse(
+                    content="Connections monitoring process was started...",
+                    status_code=200
+                )
+            # If we couldn't start a monitoring process, inform the client
+            else:
+                print("Could not start the connections monitoring process")
+                return JSONResponse(
+                    content="Could not start the connections monitoring " +
+                    "process",
+                    status_code=400
+                )
+            
+        if operation_id == OPERATION.SUBSCRIBE_QOS_EVENT.value:
+            nef_operations.subscribe_qos_event(
+                ip=variables.VARIABLES["NEF_IP"],
+                port=variables.VARIABLES["NEF_PORT"],
+                callback_url=variables.VARIABLES["SUBS_CALLBACK_URL"],
+                token = variables.VARIABLES["AUTH_TOKEN"],
+                monitoring_payload = monitoring_payload
+            )
+            return JSONResponse(content="QoS Subscription Done", status_code=200)
 
 
+        if operation_id == OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value:
+            # Delete old results file
+            if os.path.exists(
+                f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+            ):
+                os.remove(
+                    f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+                )
+            
+            # Start the netstat loop
+            netstat_process = perf_operations.start_netstat_command(
+                output_file=f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+            )
+            
+            # If we can start a monitoring process everything is ok
+            if netstat_process:
+                # Save to process to kill it later, when /stop is invoked
+                RUNNING_PROCESSES[
+                    OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value
+                ].append(
+                    netstat_process
+                )
+                print("Connections monitoring process was started...")
+                return JSONResponse(
+                    content="Connections monitoring process was started...",
+                    status_code=200
+                )
+            # If we couldn't start a monitoring process, inform the client
+            else:
+                print("Could not start the connections monitoring process")
+                return JSONResponse(
+                    content="Could not start the connections monitoring " +
+                    "process",
+                    status_code=400
+                )
     except Exception as e:
         return JSONResponse(content=f"Error: {e}", status_code=400)
 
@@ -158,26 +379,165 @@ async def abort_test(runId: int):
     pass
 
 @app.get("/results/{operation_id}")
-async def get_report(operation_id: int):
+async def get_report(operation_id: str):
     
-    if operation_id == OPERATION.E2E_UE_PERFORMANCE.value:
-        return FileResponse(path=f'./static/{variables.E2E_RESULTS}')
+    if operation_id == OPERATION.MAX_CONNECTIONS.value:
+        return FileResponse(
+            path=f'/tmp/{variables.MAX_CONNECTIONS_RESULTS}'
+        )
+    
+    if operation_id == OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value:
+        return FileResponse(
+            path=f'/tmp/{variables.NEF_CALLBACK_MAX_CONNECTIONS_RESULTS}'
+        )    
 
-    if operation_id == OPERATION.E2E_UE_RTT_PERFORMANCE.value:
-        return FileResponse(path=f'./static/{variables.E2E_RTT_RESULTS}')
+    if operation_id in [
+        OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value,
+        OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value,
+    ]:
+        # The test may still be running when the user requests its results
+        try:
+            with open(
+                f'/tmp/{variables.E2E_SINGLE_UE_THROUGHPUT_AND_LATENCY}',
+                "r"
+            ) as file:
+                data = json.load(file)
 
+                throughput_mbps, mean_rtt_ms = perf_operations\
+                    .process_iperf_results(data)
+
+                return JSONResponse(
+                    content={
+                        "throughput_mbps": throughput_mbps,
+                        "mean_rtt_ms": mean_rtt_ms
+                    },
+                    status_code=200
+                )
+        except:
+            return JSONResponse(
+                content="The E2E Single UE Throughput and Latency Performance "
+                "Test is not finished yet!",
+                status_code=404
+            )
+        
+    
+    if operation_id == OPERATION.MAX_HOPS.value:
+        # The test may still be running when the user requests its results
+        if not os.path.exists(f'/tmp/{variables.MAX_HOPS_RESULTS}'):
+            return JSONResponse(
+                content=f"The Max Hops Performance Test is not finished yet!",
+                status_code=404
+            )
+        
+        with open(f'/tmp/{variables.MAX_HOPS_RESULTS}', "r") as file:
+            data = json.load(file)
+            return JSONResponse(
+                content=data,
+                status_code=200
+            )
+        
 
 @app.post("/stop/{operation_id}")
-async def stop_test(operation_id: int):
+async def stop_test(operation_id: str):
     try:
-        if operation_id ==OPERATION.E2E_UE_PERFORMANCE.value:
-            os.remove(f'./static/{variables.E2E_RESULTS}')
-            return JSONResponse(content="Sucessfully Cleaned Up test environment", status_code=200)
+                
+        if operation_id == OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value:
+            while RUNNING_PROCESSES[
+                OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value
+            ]:
+                rp = RUNNING_PROCESSES[
+                    OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value
+                ].pop()
+                print(f"Will kill Iperf3 Server Process with PID {rp.pid}")
+                # Force the termination of the process
+                os.killpg(os.getpgid(rp.pid), signal.SIGTERM)
+                # Wait for the process to complete after termination/kill
+                rp.wait()
+                print(
+                    f"Iperf3 Server Process with PID {rp.pid} was terminated"
+                )
+            return JSONResponse(
+                content="Sucessfully Stopped the E2E Multiple UE Throughput "
+                "and Latency Performance Test",
+                status_code=200
+            )
         
-        if operation_id ==OPERATION.E2E_UE_PERFORMANCE.value:
-            os.remove(f'./static/{variables.E2E_RTT_RESULTS}')
+        if operation_id == OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value:
+            while RUNNING_PROCESSES[
+                OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value
+            ]:
+                rp = RUNNING_PROCESSES[
+                    OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value
+                ].pop()
+                print(f"Will kill Iperf3 Server Process with PID {rp.pid}")
+                # Force the termination of the process
+                os.killpg(os.getpgid(rp.pid), signal.SIGTERM)
+                # Wait for the process to complete after termination/kill
+                rp.wait()
+                print(
+                    f"Iperf3 Server Process with PID {rp.pid} was terminated"
+                )
+            return JSONResponse(
+                content="Sucessfully Stopped the E2E Single UE Throughput and "
+                "Latency Performance Test",
+                status_code=200
+            )
+        
+        
+        if operation_id == OPERATION.MAX_HOPS.value:
+            while RUNNING_PROCESSES[OPERATION.MAX_HOPS.value]:
+                rp = RUNNING_PROCESSES[OPERATION.MAX_HOPS.value].pop()
+                print(f"Will kill Hops Computing Process with PID {rp.pid}")
+                # Force the termination of the process
+                rp.terminate()
+                # If terminate() doesn't work, use kill()
+                if rp.is_alive():
+                    rp.kill()
+                # Wait for the process to complete after termination/kill
+                rp.join()
+                print(
+                    f"Hops Computing Process with PID {rp.pid} was terminated"
+                )
+            return JSONResponse(
+                content="Sucessfully Stopped the Max Hops Performance Test",
+                status_code=200
+            )
+        
+ 
+        if operation_id == OPERATION.MAX_CONNECTIONS.value:
+            
+            while RUNNING_PROCESSES[OPERATION.MAX_CONNECTIONS.value]:
+                rp = RUNNING_PROCESSES[OPERATION.MAX_CONNECTIONS.value].pop()
+                print(f"Will kill Netstat Process with PID {rp.pid}")
+                # Force kill the process (send SIGKILL)
+                os.killpg(os.getpgid(rp.pid), signal.SIGTERM)
+                # Wait for the process to complete after termination/kill
+                rp.wait()
+                print(f"Netstat Process with PID {rp.pid} was terminated")
+
             return JSONResponse(content="Sucessfully Cleaned Up test environment", status_code=200)
-     
+
+        if operation_id == OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value:
+            while RUNNING_PROCESSES[
+                OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value
+            ]:
+                rp = RUNNING_PROCESSES[
+                    OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value
+                ].pop()
+                print(f"Will kill Netstat Process with PID {rp.pid}")
+                # Force kill the process (send SIGKILL)
+                os.killpg(os.getpgid(rp.pid), signal.SIGTERM)
+                # Wait for the process to complete after termination/kill
+                rp.wait()
+                print(f"Netstat Process with PID {rp.pid} was terminated")
+
+            return JSONResponse(
+                content="Sucessfully Cleaned Up test environment",
+                status_code=200
+            )
+
+
+
     except Exception as e:
         return JSONResponse(content=f"Error: {e}", status_code=400)
 
