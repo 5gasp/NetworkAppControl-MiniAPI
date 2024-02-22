@@ -87,7 +87,7 @@ async def start_test(
     target: str = None):
     try:
         if operation_id == OPERATION.NEF_AUTHENTICATION.value or\
-            operation_id == OPERATION.AUTHENTICATION_WITH_5GS:
+            operation_id == OPERATION.AUTHENTICATION_WITH_5GS.value:
             token = nef_operations.login(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
@@ -142,7 +142,7 @@ async def start_test(
             return JSONResponse(content="Got UE Path Loss Information", status_code=200)
         
         if operation_id == OPERATION.ACQUISITION_OF_RSRP.value:
-            nef_operations.get_ue_path_loss(
+            nef_operations.get_rsrp_info(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
                 ue_supi=variables.VARIABLES["UE1_SUPI"],
@@ -151,7 +151,7 @@ async def start_test(
             return JSONResponse(content="Got UE Path Loss Information", status_code=200)
             
         if operation_id == OPERATION.SERVING_CELL_INFO.value:
-            nef_operations.get_rsrp_info(
+            nef_operations.get_serving_cell_info(
                 ip=variables.VARIABLES["NEF_IP"],
                 port=variables.VARIABLES["NEF_PORT"],
                 ue_supi=variables.VARIABLES["UE1_SUPI"],
