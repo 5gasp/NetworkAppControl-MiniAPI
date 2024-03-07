@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-api-svc    
+spec:
+  type: NodePort
+  ports:
+    - port: 3001
+      targetPort: 3001
+      nodePort: 31001
+      protocol: TCP
+      name: mini-api
+  selector:
+    app: mini-api    
