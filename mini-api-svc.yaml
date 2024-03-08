@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Author: Chris Nicolaescu
+# @Date:   2024-01-07
+# @Last Modified by:   
+# @Last Modified time: 
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,7 +10,7 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - port: 3001
+    - port: 31001
       targetPort: 3001
       nodePort: 31001
       protocol: TCP

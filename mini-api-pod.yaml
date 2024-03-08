@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Author: Chris Nicolaescu
+# @Date:   2024-01-07
+# @Last Modified by:
+# @Last Modified time:
 apiVersion: v1
 kind: Pod
 metadata:
@@ -12,8 +17,8 @@ spec:
       - name: http
         containerPort: 3001
         protocol: TCP
-    command:
-    - "/bin/sh"
-    -  "-c"
-    - "tail -f /dev/null"
+#    command:
+#    - "/bin/sh"
+#    -  "-c"
+#    - "tail -f /dev/null"
 
