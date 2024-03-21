@@ -9,4 +9,6 @@ WORKDIR /app/src
 
 EXPOSE 3001
 
+EXPOSE 5201
+
 CMD ["uvicorn", "main:app", "--host=0.0.0.0", "--port=3001"]
