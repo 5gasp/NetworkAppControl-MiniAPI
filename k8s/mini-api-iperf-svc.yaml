@@ -11,7 +11,7 @@ spec:
   type: NodePort
   ports:
     - port: 31201
-      targetPort: 5201001
+      targetPort: 5201
       nodePort: 31201
       protocol: TCP
       name: mini-api
