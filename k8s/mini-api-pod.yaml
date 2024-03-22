@@ -12,7 +12,7 @@ metadata:
 spec:
   containers:
   - name: mini-api
-    image: harbor.patras5g.eu/5gasp/mini-api-server:latest-x86
+    image: harbor.patras5g.eu/5gasp/mini-api-server:latest-uob
     ports:
       - name: http
         containerPort: 3001

@@ -16,4 +16,4 @@ spec:
       protocol: TCP
       name: mini-api
   selector:
-    app: mini-api
+    {{- include "mini-api-helm.selectorLabels" . | nindent 4 }}
