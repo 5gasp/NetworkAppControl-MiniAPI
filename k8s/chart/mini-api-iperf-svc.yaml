@@ -1,0 +1,19 @@
+# -*- coding: utf-8 -*-
+# @Author: Chris Nicolaescu
+# @Date:   2024-01-07
+# @Last Modified by:
+# @Last Modified time:
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf-svc
+spec:
+  type: NodePort
+  ports:
+    - port: 31201
+      targetPort: 5201
+      nodePort: 31201
+      protocol: TCP
+      name: mini-api
+  selector:
+    {{- include "mini-api-helm.selectorLabels" . | nindent 4 }}
