@@ -30,6 +30,7 @@ RUNNING_PROCESSES = {
     OPERATION.E2E_SINGLE_UE_LATENCY_AND_THROUGHPUT.value: [],
     OPERATION.E2E_MULTIPLE_UE_LATENCY_AND_THROUGHPUT.value: [],
     OPERATION.NEF_CALLBACK_MAX_CONNECTIONS.value: [],
+    OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value: [],
 }
 
 # Dependency
@@ -84,7 +85,9 @@ async def start_test(
     target_ip: str = None,
     target_port: int = None,
     ue_count: int = None,
-    target: str = None):
+    target: str = None,
+    test_duration: int = None):
+    print(f"Received /start/{operation_id}")
     try:
         if operation_id == OPERATION.NEF_AUTHENTICATION.value or\
             operation_id == OPERATION.AUTHENTICATION_WITH_5GS.value:
@@ -365,6 +368,44 @@ async def start_test(
                     "process",
                     status_code=400
                 )
+        if operation_id == OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value:
+            error_message = None
+            # If the current MiniAPI is a client
+            if not is_server:
+                # Now, we can run DriveU Streamer in a indpendent process
+                driveu_process = perf_operations.start_driveu_streamer(
+                    target_ip=target_ip,
+                    test_duration=test_duration)
+
+                if not driveu_process:
+                    error_message = "Couldn't start DriveU Streamer. Thus, the"\
+                    "E2E DriveU Throughput and Latency Test could not be "\
+                    "started!"
+            else:
+                driveu_process = perf_operations.start_driveu_server()
+
+                if not driveu_process:
+                    error_message = "Couldn't start DriveU Server. Thus, the"\
+                    "E2E DriveU Throughput and Latency Test could not be "\
+                    "started!"
+                else:
+                    # Save to process to kill it later, when /stop is invoked
+                    RUNNING_PROCESSES[
+                        OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value
+                    ].append(driveu_process)
+
+            if error_message:
+                return JSONResponse(
+                    content=error_message,
+                    status_code=400
+            )
+
+            return JSONResponse(
+                content=f"Started DriveU Throughput and Latency "
+                "Performance Test.",
+                status_code=200
+            )
+
     except Exception as e:
         return JSONResponse(content=f"Error: {e}", status_code=400)
 
@@ -435,7 +476,22 @@ async def get_report(operation_id: str):
                 content=data,
                 status_code=200
             )
-        
+
+    if operation_id == OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value:
+        result_ok, throughput_mbps, mean_rtt_ms, error_msg = perf_operations.process_driveu_results()
+        if result_ok:
+            return JSONResponse(
+                content={
+                    "throughput_mbps": throughput_mbps,
+                    "mean_rtt_ms": mean_rtt_ms
+                },
+                status_code=200
+            )
+        else:
+            return JSONResponse(
+                content=error_msg,
+                status_code=404
+            )
 
 @app.post("/stop/{operation_id}")
 async def stop_test(operation_id: str):
@@ -536,6 +592,26 @@ async def stop_test(operation_id: str):
                 status_code=200
             )
 
+        if operation_id == OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value:
+            while RUNNING_PROCESSES[
+                OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value
+            ]:
+                rp = RUNNING_PROCESSES[
+                    OPERATION.E2E_DRIVEU_LATENCY_AND_THROUGHPUT.value
+                ].pop()
+                print(f"Will kill Driveu Server Process with PID {rp.pid}")
+                # Force the termination of the process
+                rp.terminate()
+                # Wait for the process to complete after termination/kill
+                rp.wait()
+                print(
+                    f"DriveU Server Process with PID {rp.pid} was terminated"
+                )
+            return JSONResponse(
+                content="Sucessfully Stopped the E2E DriveU Throughput "
+                "and Latency Performance Test",
+                status_code=200
+            )
 
 
     except Exception as e:

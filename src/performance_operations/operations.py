@@ -7,6 +7,10 @@ from aux.ping_wrapper import parse_hping_output
 import json
 import os
 import multiprocessing
+import threading
+from datetime import datetime
+import shlex
+import pandas
 
 def create_process_group():
     os.setpgrp()
@@ -165,3 +169,89 @@ def start_netstat_command(output_file):
     # Optional: Print the process ID (PID) if needed
     print("Process ID:", process.pid)
     return process
+
+def on_timeout_stop_driveu(process, timeout):
+    print(f"[{datetime.now()}]  Stop DriveU process after running duration of {timeout} seconds")
+    process.terminate()
+
+def start_driveu_streamer(target_ip, test_duration):
+    print(f"[{datetime.now()}] Starting DriveU Streamer process ...")
+
+    command = f"./build/Fake streamer --relay-ip {target_ip}"
+
+    # Run the command as a background process
+    try:
+        process = subprocess.Popen(
+            shlex.split(command),
+            cwd="/opt/driveu/fake",
+            close_fds=True,
+            stdout=None,
+            stderr=None
+        )
+    except Exception as e:
+        print(f"Failed DriveU streamer process with: {e}")
+    # Set up timer to kill the process after timeout
+    timer_thread = threading.Timer(interval=test_duration, function=on_timeout_stop_driveu, args=(process, test_duration))
+    timer_thread.start()
+
+    print(f"[{datetime.now()}] Started DriveU Streamer process ...")
+    # Optional: Print the process ID (PID) if needed
+    print("Process ID:", process.pid)
+    return process
+
+def start_driveu_server():
+    print(f"Starting DriveU server process...")
+
+    # Command to start the DriveU server
+    command = "./build/Fake server"
+
+    try:
+        # Run the command as a background process
+        process = subprocess.Popen(
+            shlex.split(command),
+            cwd="/opt/driveu/fake",
+            close_fds=True,
+            stdout=None,
+            stderr=None
+        )
+    except Exception as e:
+        print(f"Failed DriveU server process with: {e}")
+
+    print(f"Started DriveU server process...")
+    # Optional: Print the process ID (PID) if needed
+    print("Process ID:", process.pid)
+    return process
+
+
+def fixLastLine(frameLogPath):
+    replacement = ']'
+
+    with open(frameLogPath, 'r') as file:
+        lines = file.readlines()
+
+    second_to_last_line_index = -2
+    last_line_index = -1
+    if len(lines) > 1:
+        lines[last_line_index] = replacement
+        lines[second_to_last_line_index] = lines[second_to_last_line_index].rstrip(', \n') + '\n'
+        # Write the modified lines back to the file
+        with open(frameLogPath, 'w') as file:
+            file.writelines(lines)
+
+def process_driveu_results():
+    frameLogPath = '/tmp/miyadijsonlogs/framelog.json'
+    US_IN_MS = 1000
+    KB_TO_MB = 1000
+
+    try:
+        dataFrame = pandas.read_json(frameLogPath)
+    except:
+        fixLastLine(frameLogPath)
+        try:
+            dataFrame = pandas.read_json(frameLogPath)
+        except Exception as e:
+            error_msg = f"Failed to parse DriveU results with: {e}"
+            print(f"{error_msg}")
+            return False, 0, 0, error_msg
+
+    return True, dataFrame['b'].mean()/KB_TO_MB, dataFrame['l'].mean()/US_IN_MS, ""
